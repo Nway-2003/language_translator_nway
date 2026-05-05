@@ -33,7 +33,7 @@ const sourceLanguageSelect = document.getElementById('sourceLang');
 const API_URL = "http://localhost:5001/translate";
 const FILE_API_URL = "http://localhost:5001/translate_file";
 
-const MAX_CHARS = 2000;
+const MAX_CHARS = 500;
 
 let currentTranslationId = 0; // ADD THIS to track the latest request
 let lastDetectedCode = null;
@@ -64,6 +64,20 @@ function switchTab(toFile) {
     // 1. Show the language row again
     langRow.style.display = "flex"; 
     historyContent.classList.remove("active");
+
+    // --- UPDATED SYNONYM LOGIC ---
+    const synonymContainer = document.getElementById("synonym-container");
+    const synonymList = document.getElementById("synonymList");
+
+    if (!toFile) {
+        // If switching BACK to Text Tab, show synonyms ONLY if they exist
+        if (synonymList && synonymList.innerHTML.trim() !== "") {
+            synonymContainer.style.display = "block";
+        }
+    } else {
+        // Hide synonyms when switching away to File translation
+        synonymContainer.style.display = "none";
+    }
     
     // 2. Remove "active" from History and Favorite icons
     historyBtn.classList.remove("active");
@@ -98,19 +112,27 @@ let typingTimer;
 inputText.addEventListener("input", () => {
     updateCharCount();
     clearTimeout(typingTimer);
+    
     if (inputText.value.trim()) {
         typingTimer = setTimeout(translateText, 500);
     } else {
+        // Reset translation output
         resultText.value = "";
         lastDetectedCode = null;
-        updateAutoDetectLabel(); // Reset to default when empty
+        updateAutoDetectLabel(); 
+        
+        // --- SYNONYM CLEANUP ---
+        const synonymContainer = document.getElementById("synonym-container");
+        const synonymList = document.getElementById("synonymList");
+        
+        if (synonymContainer) synonymContainer.style.display = "none";
+        if (synonymList) synonymList.innerHTML = ""; // Clear old suggestions
     }
 });
 
 [sourceLang, targetLang].forEach(el => {
     el.addEventListener("change", () => {
         if (inputText.value.trim()) translateText();
-        // If user manually picks a language, reset the "Auto Detect" text
         if (sourceLang.value !== "auto") {
             updateAutoDetectLabel();
         }
@@ -120,10 +142,8 @@ inputText.addEventListener("input", () => {
 async function translateText() {
     if (!inputText.value.trim()) return;
     
-    // 1. INCREMENT THE ID: Every time we start a new translation
     const requestId = ++currentTranslationId; 
     
-    // Only show "Translating..." if we are on the text tab
     if (textContent.classList.contains("active")) {
         statusMsg.textContent = "Translating...";
     }
@@ -136,16 +156,65 @@ async function translateText() {
                 q: inputText.value, 
                 source: sourceLang.value, 
                 target: targetLang.value, 
-                format: "text" 
+                format: "text",
+                alternatives: 5 // <-- REQUEST ALTERNATIVES FROM SELF-HOSTED API
             })
         });
         const data = await response.json();
 
-        // 2. CHECK THE ID: Only update the UI if this is still the LATEST request
         if (requestId === currentTranslationId) {
             resultText.value = data.translatedText;
 
-            // --- ADD THIS LINE TO SAVE TO HISTORY ---
+            // --- NEW: SYNONYM BOX LOGIC ---
+// --- NEW: SYNONYM BOX LOGIC (Word-only mode) ---
+            const synonymContainer = document.getElementById("synonym-container");
+            const synonymList = document.getElementById("synonymList");
+            synonymList.innerHTML = ""; 
+
+            // 1. Check if the input is exactly one word
+            const inputVal = inputText.value.trim();
+            const isSingleWord = inputVal.length > 0 && !inputVal.includes(" ");
+
+            // 2. Only show synonyms if it's a single word AND the API returned alternatives
+            if (isSingleWord && data.alternatives && data.alternatives.length > 0) {
+                synonymContainer.style.display = "block";
+                data.alternatives.forEach(alt => {
+                    const span = document.createElement("span");
+                    
+                    // Style using your existing classes/vars
+                    span.className = "synonym-item";
+                    span.textContent = alt;
+                    span.style = "background: var(--border-color); padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; color: var(--text-main); transition: 0.2s; display: inline-block; margin: 2px;";
+
+                    // Hover effects
+                    span.onmouseover = () => { if(!span.classList.contains('active-syn')) span.style.background = "var(--nav-bg)"; };
+                    span.onmouseout = () => { if(!span.classList.contains('active-syn')) span.style.background = "var(--border-color)"; };
+
+                    // Click to swap
+                    span.onclick = () => { 
+                        resultText.value = alt; 
+                        
+                        document.querySelectorAll(".synonym-item").forEach(s => {
+                            s.classList.remove('active-syn');
+                            s.style.background = "var(--border-color)";
+                            s.style.color = "var(--text-main)";
+                        });
+                        
+                        span.classList.add('active-syn');
+                        span.style.background = "var(--nav-bg)";
+                        span.style.color = "white";
+
+                        saveToHistory(sourceLang.value, targetLang.value, inputText.value, alt);
+                    };
+                    
+                    synonymList.appendChild(span);
+                });
+            } else {
+                // Hide if it's a sentence or no alternatives found
+                synonymContainer.style.display = "none";
+            }
+            // ------------------------------
+
             saveToHistory(sourceLang.value, targetLang.value, inputText.value, data.translatedText);
             
             if (sourceLang.value === "auto" && data.detectedLanguage) {
@@ -154,15 +223,14 @@ async function translateText() {
                 const langName = langOption ? langOption.textContent : lastDetectedCode.toUpperCase();
                 updateAutoDetectLabel(langName);
             }
-            // --- VISIBILITY CHECK ---
-            // Only show "Translated" if the user is still looking at the text tab
+
             if (textContent.classList.contains("active")) {
                 statusMsg.textContent = "Translated.";
                 setTimeout(() => {
                     if (statusMsg.textContent === "Translated.") statusMsg.textContent = "";
                 }, 2000);
             } else {
-                statusMsg.textContent = ""; // Silently clear it if user switched tabs
+                statusMsg.textContent = ""; 
             }
         }
     } catch (e) { 
@@ -277,7 +345,7 @@ function updateCharCount() {
     const currentLength = inputText.value.length;
     charCount.textContent = `${currentLength} / ${MAX_CHARS}`; 
 
-    // Visual feedback: Turn text red only when 100% full (2000/2000)
+    // Visual feedback: Turn text red only when 100% full (500/500)
     if (currentLength >= MAX_CHARS) {
         charCount.style.color = "#ef4444"; // Red color
     } else {
@@ -300,12 +368,24 @@ clearBtn.addEventListener("click", () => {
         return; 
     }
 
+    // Reset Text Areas
     inputText.value = ""; 
     resultText.value = ""; 
+
+    // Reset Synonym Box
+    const synonymContainer = document.getElementById("synonym-container");
+    const synonymList = document.getElementById("synonymList");
+    if (synonymContainer) {
+        synonymContainer.style.display = "none";
+        if (synonymList) synonymList.innerHTML = ""; // Wipe the old synonym spans
+    }
+
+    // Reset Language Detection & Stats
     lastDetectedCode = null;
     updateAutoDetectLabel(); 
     updateCharCount();
     
+    // Status Feedback
     if (textContent.classList.contains("active")) {
         statusMsg.textContent = "Cleared.";
         setTimeout(() => {
@@ -612,6 +692,9 @@ function deleteHistoryItem(index, type) {
 function showHistoryView(type = "history") {
     // 1. Hide the language dropdowns row
     langRow.style.display = "none";
+
+    // --- ADD THIS LINE TO HIDE SYNONYMS ---
+    document.getElementById("synonym-container").style.display = "none";
     
     // 2. Hide other content areas
     textContent.classList.remove("active");
