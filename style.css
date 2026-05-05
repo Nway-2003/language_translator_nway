@@ -188,6 +188,43 @@ textarea {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+/* Container - Removed border and background */
+#synonym-container {
+    display: none;
+    margin-top: 15px;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+/* Heading - Subtle and modern */
+#synonym-container small {
+    color: #6b7280; /* Muted gray */
+    letter-spacing: 1px;
+    font-size: 0.7rem;
+    display: block;
+    margin-bottom: 15px;
+}
+
+/* Individual Synonym Chips */
+.synonym-item {
+    background: var(--box-bg); /* Matches your text boxes */
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 6px 16px;
+    border-radius: 20px; /* Pill shape */
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.synonym-item:hover {
+    border-color: var(--nav-bg);
+    color: var(--nav-bg);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(124, 58, 237, 0.2);
+}
+
 .box-controls {
   padding: 10px;
   display: flex;
@@ -335,6 +372,11 @@ textarea {
 #statusMsg {
     margin-top: 15px;
     font-weight: 500;
+    /* This locks the height so the synonym box doesn't jump */
+    min-height: 24px; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .history-action {
