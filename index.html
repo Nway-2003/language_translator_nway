@@ -149,7 +149,7 @@
     <div id="text-content" class="tab-content active">
       <div class="text-row">
         <div class="text-box">
-          <textarea id="inputText" maxlength="2000" placeholder="Enter text here..."></textarea>
+          <textarea id="inputText" maxlength="500" placeholder="Enter text here..."></textarea>
           <div class="box-controls">
             <div class="control-left">
               <button class="icon-btn" id="voiceTypingBtn" title="Voice Typing">
@@ -209,6 +209,14 @@
 </div>
 
     <p id="statusMsg"></p>
+
+    <div id="synonym-container" style="display:none;">
+        <small style="color: var(--nav-bg); font-weight: bold; text-transform: uppercase; font-size: 0.75rem; display: block; margin-bottom: 15px;">
+            Alternative Phrasings
+        </small>
+        <div id="synonymList" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;"></div>
+    </div>
+    
   </div>
 
   <footer class="footer">
