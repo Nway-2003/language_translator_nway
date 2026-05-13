@@ -173,7 +173,8 @@ async function translateText() {
 
             // 1. Check if the input is exactly one word
             const inputVal = inputText.value.trim();
-            const isSingleWord = inputVal.length > 0 && !inputVal.includes(" ");
+            // UPDATE THIS LINE:
+const isSingleWord = inputVal.length > 0 && !inputVal.includes(" ") && inputVal.length < 20;
 
             // 2. Only show synonyms if it's a single word AND the API returned alternatives
             if (isSingleWord && data.alternatives && data.alternatives.length > 0) {
@@ -517,15 +518,16 @@ fileTranslateBtn.addEventListener("click", translateFile);
 
 updateCharCount();
 
-// --- Storage Logic ---
+// --- Storage Logic (Privacy-by-Design) ---
 function getStorage(key) {
+    // Accesses ONLY the local browser's vault
     return JSON.parse(localStorage.getItem(key) || "[]");
 }
 
 function saveToHistory(source, target, sourceText, targetText) {
     let history = getStorage("translate_history");
     const newItem = { source, target, sourceText, targetText, id: Date.now(), favorite: false };
-    // Keep only last 20 items
+    // Data is saved locally; it never leaves the user's device
     history.unshift(newItem);
     localStorage.setItem("translate_history", JSON.stringify(history.slice(0, 20)));
 }
@@ -721,8 +723,11 @@ function showHistoryView(type = "history") {
 historyBtn.addEventListener("click", () => showHistoryView("history"));
 
 // Clear logic
+// Security Feature: Allows users to physically wipe their local data
 clearHistoryBtn.addEventListener("click", () => {
+    // Physically removes the data from the local hardware
     localStorage.removeItem("translate_history");
+    // Updates UI immediately to reflect the deletion
     renderHistory("history");
     statusMsg.textContent = "History Cleared.";
 });
